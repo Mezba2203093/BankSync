@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+env/
+*.db
+*.sqlite
+*.sqlite3
+bank.db
+.env
+.vscode/
