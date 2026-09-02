@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Transaction History</title>
+    <style>
+        body { font-family: Arial; max-width: 1000px; margin: 30px auto; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background: #2c3e50; color: white; }
+        tr:nth-child(even) { background: #f2f2f2; }
+        .status-completed { color: green; font-weight: bold; }
+        .status-pending { color: orange; }
+        .status-failed { color: red; }
+        .search { margin: 20px 0; }
+        .search input { padding: 10px; width: 300px; border: 1px solid #ddd; border-radius: 4px; }
+        .search button { padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .back { margin-top: 20px; display: inline-block; color: #3498db; text-decoration: none; }
+        .empty { text-align: center; color: #888; padding: 40px; }
+    </style>
+</head>
+<body>
+    <h1>📜 Transaction History</h1>
+    
+    <div class="search">
+        <form method="POST" style="display: inline;">
+            <input type="number" name="account_id" placeholder="Enter Account ID (optional)">
+            <button type="submit">Filter</button>
+            <a href="/history" style="margin-left: 10px; color: #3498db;">Show All</a>
+        </form>
+    </div>
+    
+    {% if transactions %}
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Sender</th>
+                <th>Receiver</th>
+                <th>Type</th>
+                <th>Amount ($)</th>
+                <th>Timestamp</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for tx in transactions %}
+            <tr>
+                <td>{{ tx[0] }}</td>
+                <td>{{ tx[1] if tx[1] else '—' }}</td>
+                <td>{{ tx[2] if tx[2] else '—' }}</td>
+                <td>{{ tx[3] }}</td>
+                <td>{{ "%.2f"|format(tx[4]) }}</td>
+                <td>{{ tx[5] }}</td>
+                <td class="status-{{ tx[6].lower() }}">{{ tx[6] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty">
+        <p>No transactions found.</p>
+        <p>Start by creating an account and making deposits!</p>
+    </div>
+    {% endif %}
+    
+    <a href="/" class="back">← Back to Home</a>
+</body>
+</html>

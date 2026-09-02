@@ -1,0 +1,37 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Transfer Money</title>
+    <style>
+        body { font-family: Arial; max-width: 600px; margin: 50px auto; padding: 20px; }
+        input { width: 100%; padding: 10px; margin: 5px 0 15px 0; border: 1px solid #ddd; border-radius: 4px; }
+        button { background: #e67e22; color: white; padding: 12px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #d35400; }
+        .back { margin-top: 20px; display: inline-block; color: #3498db; text-decoration: none; }
+        .note { background: #f8f9fa; padding: 15px; border-left: 4px solid #e67e22; margin-top: 20px; }
+        code { background: #eee; padding: 2px 6px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>💸 Transfer Money</h1>
+    <div class="note">
+        <strong>⚠️ ACID Transaction Demo:</strong><br>
+        Uses explicit <code>BEGIN</code>, <code>COMMIT</code>, and <code>ROLLBACK</code>.<br>
+        If any error occurs, all changes are rolled back.
+    </div>
+    <form method="POST">
+        <label>Sender Account ID:</label>
+        <input type="number" name="sender_id" required>
+        
+        <label>Receiver Account ID:</label>
+        <input type="number" name="receiver_id" required>
+        
+        <label>Amount ($):</label>
+        <input type="number" name="amount" step="0.01" required>
+        
+        <button type="submit">Transfer</button>
+    </form>
+    <a href="/" class="back">← Back to Home</a>
+</body>
+</html>
