@@ -1,8 +1,32 @@
 from flask import Flask, render_template, request, redirect, url_for
 import database as db
 import sqlite3
+import ai_model
 
 app = Flask(__name__)
+
+
+def flag_transaction(transaction_id, amount, sender_account, timestamp=None):
+
+    score, risk, reason = ai_model.score_transaction(
+        amount, sender_account, timestamp)
+
+    conn = db.get_connection()
+    c = conn.cursor()
+    try:
+        c.execute(
+            'UPDATE "Transaction" SET anomaly_score = ?, risk_level = ? WHERE transaction_id = ?',
+            (score, risk, transaction_id)
+        )
+        if risk != 'Normal':
+            c.execute('''
+                INSERT INTO "AI_Analysis"
+                    (transaction_id, anomaly_score, risk_level, detection_reason)
+                VALUES (?, ?, ?, ?)
+            ''', (transaction_id, score, risk, reason))
+        conn.commit()
+    finally:
+        conn.close()
 
 # ---------- HOME ----------
 
@@ -47,7 +71,7 @@ def create_account():
 
             conn.commit()
             return f"""
-                <h2>✅ Account Created Successfully!</h2>
+                <h2> Account Created Successfully!</h2>
                 <p><strong>Customer ID:</strong> {customer_id}</p>
                 <p><strong>Account ID:</strong> {account_id}</p>
                 <p><strong>Account Type:</strong> {account_type}</p>
@@ -90,13 +114,15 @@ def deposit():
                 VALUES (?, ?, ?, ?, ?)
             ''', (None, account_id, 'Deposit', amount, 'Completed'))
             conn.commit()
+            last_id = cursor.lastrowid
+            flag_transaction(last_id, amount, account_id)
 
             cursor.execute(
                 'SELECT balance FROM "Account" WHERE account_id = ?', (account_id,))
             new_balance = cursor.fetchone()[0]
 
             return f"""
-                <h2>✅ Deposit Successful!</h2>
+                <h2> Deposit Successful!</h2>
                 <p>Account ID: {account_id}</p>
                 <p>Amount Deposited: ${amount:.2f}</p>
                 <p>New Balance: ${new_balance:.2f}</p>
@@ -144,13 +170,15 @@ def withdraw():
                 VALUES (?, ?, ?, ?, ?)
             ''', (account_id, None, 'Withdrawal', amount, 'Completed'))
             conn.commit()
+            last_id = cursor.lastrowid
+            flag_transaction(last_id, amount, account_id)
 
             cursor.execute(
                 'SELECT balance FROM "Account" WHERE account_id = ?', (account_id,))
             new_balance = cursor.fetchone()[0]
 
             return f"""
-                <h2>✅ Withdrawal Successful!</h2>
+                <h2> Withdrawal Successful!</h2>
                 <p>Account ID: {account_id}</p>
                 <p>Amount Withdrawn: ${amount:.2f}</p>
                 <p>New Balance: ${new_balance:.2f}</p>
@@ -254,9 +282,11 @@ def transfer():
             ''', (sender_id, receiver_id, 'Transfer', amount, 'Completed'))
 
             conn.commit()
+            last_id = cursor.lastrowid
+            flag_transaction(last_id, amount, sender_id)
 
             return f"""
-                <h2>✅ Transfer Successful!</h2>
+                <h2> Transfer Successful!</h2>
                 <p>Sender Account: {sender_id}</p>
                 <p>Receiver Account: {receiver_id}</p>
                 <p>Amount Transferred: ${amount:.2f}</p>
@@ -272,7 +302,7 @@ def transfer():
         except Exception as e:
             conn.rollback()
             return f"""
-                <h2>❌ Transfer Failed!</h2>
+                <h2> Transfer Failed!</h2>
                 <p>Error: {str(e)}</p>
                 <p><strong>Rollback Executed:</strong> All changes undone.</p>
                 <a href='/'>← Go Home</a>
@@ -285,6 +315,7 @@ def transfer():
 # ---------- TRANSACTION HISTORY ----------
 
 
+# ---------- TRANSACTION HISTORY ----------
 @app.route('/history', methods=['GET', 'POST'])
 def history():
     conn = db.get_connection()
@@ -292,31 +323,36 @@ def history():
 
     if request.method == 'POST':
         account_id = request.form.get('account_id')
+        # Check if user actually typed a valid ID
         if account_id and account_id.isdigit():
             account_id = int(account_id)
             cursor.execute('''
-                SELECT transaction_id, sender_account, receiver_account, 
-                       transaction_type, amount, timestamp, status
+                SELECT transaction_id, sender_account, receiver_account,
+                       transaction_type, amount, timestamp, status,
+                       anomaly_score, risk_level
                 FROM "Transaction"
                 WHERE sender_account = ? OR receiver_account = ?
-                ORDER BY timestamp DESC
+                ORDER BY transaction_id DESC
             ''', (account_id, account_id))
         else:
-            # Show all if no valid account
+            # If they clicked "Filter" but left it blank, show all
             cursor.execute('''
-                SELECT transaction_id, sender_account, receiver_account, 
-                       transaction_type, amount, timestamp, status
+                SELECT transaction_id, sender_account, receiver_account,
+                       transaction_type, amount, timestamp, status,
+                       anomaly_score, risk_level
                 FROM "Transaction"
-                ORDER BY timestamp DESC
+                ORDER BY transaction_id DESC
+                LIMIT 100
             ''')
     else:
-        # Default: show last 50 transactions
+        # Default GET request: show last 100 transactions
         cursor.execute('''
-            SELECT transaction_id, sender_account, receiver_account, 
-                   transaction_type, amount, timestamp, status
+            SELECT transaction_id, sender_account, receiver_account,
+                   transaction_type, amount, timestamp, status,
+                   anomaly_score, risk_level
             FROM "Transaction"
-            ORDER BY timestamp DESC
-            LIMIT 50
+            ORDER BY transaction_id DESC
+            LIMIT 100
         ''')
 
     transactions = cursor.fetchall()
@@ -326,5 +362,5 @@ def history():
 
 # ---------- RUN ----------
 if __name__ == '__main__':
-    db.init_db()
+    # db.init_db() <= commented so it doesnt wipe data in restart
     app.run(debug=True, port=5000)
